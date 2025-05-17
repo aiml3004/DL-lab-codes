@@ -1,0 +1,87 @@
+---Implement a DNN using RMSprop with learning rates 0.01 and 0.0001 on the Wildfire dataset. 
+Compare training and validation performance. 
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.optimizers import RMSprop
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.utils import to_categorical
+import matplotlib.pyplot as plt
+
+# --- Dummy data for Wildfire dataset placeholder ---
+num_samples = 8000
+num_features = 15
+num_classes = 4  # example number of classes
+
+np.random.seed(1)
+X = np.random.rand(num_samples, num_features).astype('float32')
+y = np.random.randint(0, num_classes, num_samples)
+
+# Normalize features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# One-hot encode labels
+y_cat = to_categorical(y, num_classes)
+
+# Train-validation split
+X_train, X_val, y_train, y_val = train_test_split(X_scaled, y_cat, test_size=0.2, random_state=42)
+
+# --- Define DNN model function ---
+def create_dnn(input_dim, num_classes):
+    model = Sequential([
+        Dense(128, activation='relu', input_shape=(input_dim,)),
+        Dropout(0.3),
+        Dense(64, activation='relu'),
+        Dropout(0.2),
+        Dense(num_classes, activation='softmax')
+    ])
+    return model
+
+# --- Train with RMSprop, lr=0.01 ---
+model_01 = create_dnn(X_train.shape[1], y_train.shape[1])
+optimizer_01 = RMSprop(learning_rate=0.01)
+model_01.compile(optimizer=optimizer_01, loss='categorical_crossentropy', metrics=['accuracy'])
+
+print("Training with RMSprop lr=0.01 ...")
+history_01 = model_01.fit(X_train, y_train,
+                          validation_data=(X_val, y_val),
+                          epochs=30,
+                          batch_size=64,
+                          verbose=0)
+
+# --- Train with RMSprop, lr=0.0001 ---
+model_00001 = create_dnn(X_train.shape[1], y_train.shape[1])
+optimizer_00001 = RMSprop(learning_rate=0.0001)
+model_00001.compile(optimizer=optimizer_00001, loss='categorical_crossentropy', metrics=['accuracy'])
+
+print("Training with RMSprop lr=0.0001 ...")
+history_00001 = model_00001.fit(X_train, y_train,
+                                validation_data=(X_val, y_val),
+                                epochs=30,
+                                batch_size=64,
+                                verbose=0)
+
+# --- Plot training and validation accuracy and loss ---
+plt.figure(figsize=(14,6))
+
+plt.subplot(1,2,1)
+plt.plot(history_01.history['val_loss'], label='Val Loss lr=0.01')
+plt.plot(history_00001.history['val_loss'], label='Val Loss lr=0.0001')
+plt.title('Validation Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(history_01.history['val_accuracy'], label='Val Accuracy lr=0.01')
+plt.plot(history_00001.history['val_accuracy'], label='Val Accuracy lr=0.0001')
+plt.title('Validation Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+
+plt.show()
