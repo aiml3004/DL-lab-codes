@@ -1,0 +1,85 @@
+---Statement 17 
+Implement the training of a DNN using Adam and SGD optimizers with a learning rate of 0.001 on 
+the Wildfire dataset. Provide comparative plots. 
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.optimizers import Adam, SGD
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.utils import to_categorical
+import matplotlib.pyplot as plt
+
+# --- Load and preprocess your Wildfire dataset ---
+num_samples = 10000
+num_features = 20
+num_classes = 3
+
+np.random.seed(42)
+X = np.random.rand(num_samples, num_features).astype('float32')
+y = np.random.randint(0, num_classes, num_samples)
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+y_cat = to_categorical(y, num_classes)
+
+X_train, X_val, y_train, y_val = train_test_split(X_scaled, y_cat, test_size=0.2, random_state=42)
+
+# --- Define DNN model function ---
+def create_dnn(input_dim, num_classes):
+    model = Sequential([
+        Dense(128, activation='relu', input_shape=(input_dim,)),
+        Dropout(0.4),
+        Dense(64, activation='relu'),
+        Dropout(0.3),
+        Dense(num_classes, activation='softmax')
+    ])
+    return model
+
+# --- Train with Adam optimizer ---
+adam_model = create_dnn(X_train.shape[1], y_train.shape[1])
+adam_optimizer = Adam(learning_rate=0.001)
+adam_model.compile(optimizer=adam_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+print("Training with Adam optimizer...")
+history_adam = adam_model.fit(X_train, y_train,
+                              validation_data=(X_val, y_val),
+                              epochs=30,
+                              batch_size=64,
+                              verbose=0)
+
+# --- Train with SGD optimizer ---
+sgd_model = create_dnn(X_train.shape[1], y_train.shape[1])
+sgd_optimizer = SGD(learning_rate=0.001)
+sgd_model.compile(optimizer=sgd_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+print("Training with SGD optimizer...")
+history_sgd = sgd_model.fit(X_train, y_train,
+                            validation_data=(X_val, y_val),
+                            epochs=30,
+                            batch_size=64,
+                            verbose=0)
+
+# --- Plot validation loss and accuracy ---
+plt.figure(figsize=(14,6))
+
+plt.subplot(1, 2, 1)
+plt.plot(history_adam.history['val_loss'], label='Adam Val Loss')
+plt.plot(history_sgd.history['val_loss'], label='SGD Val Loss')
+plt.title('Validation Loss Comparison')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.subplot(1, 2, 2)
+plt.plot(history_adam.history['val_accuracy'], label='Adam Val Accuracy')
+plt.plot(history_sgd.history['val_accuracy'], label='SGD Val Accuracy')
+plt.title('Validation Accuracy Comparison')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+
+plt.show()
