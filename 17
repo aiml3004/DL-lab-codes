@@ -2,84 +2,63 @@
 Implement the training of a DNN using Adam and SGD optimizers with a learning rate of 0.001 on 
 the Wildfire dataset. Provide comparative plots. 
 
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.optimizers import Adam, SGD
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from tensorflow.keras.utils import to_categorical
 import matplotlib.pyplot as plt
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.optimizers import Adam, SGD
 
-# --- Load and preprocess your Wildfire dataset ---
-num_samples = 10000
-num_features = 20
-num_classes = 3
+# Load image data
+train_dir = 'wildfire_dataset/train'
+test_dir = 'wildfire_dataset/test'
 
-np.random.seed(42)
-X = np.random.rand(num_samples, num_features).astype('float32')
-y = np.random.randint(0, num_classes, num_samples)
+# Preprocess images
+train_gen = ImageDataGenerator(rescale=1./255)
+test_gen = ImageDataGenerator(rescale=1./255)
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+train_data = train_gen.flow_from_directory(train_dir,
+                                           target_size=(128, 128),
+                                           batch_size=32,
+                                           class_mode='binary')
 
-y_cat = to_categorical(y, num_classes)
+test_data = test_gen.flow_from_directory(test_dir,
+                                         target_size=(128, 128),
+                                         batch_size=32,
+                                         class_mode='binary',
+                                         shuffle=False)
 
-X_train, X_val, y_train, y_val = train_test_split(X_scaled, y_cat, test_size=0.2, random_state=42)
-
-# --- Define DNN model function ---
-def create_dnn(input_dim, num_classes):
+# Simple model function
+def build_model(optimizer):
     model = Sequential([
-        Dense(128, activation='relu', input_shape=(input_dim,)),
-        Dropout(0.4),
+        Flatten(input_shape=(128, 128, 3)),
         Dense(64, activation='relu'),
-        Dropout(0.3),
-        Dense(num_classes, activation='softmax')
+        Dense(32, activation='relu'),
+        Dense(1, activation='sigmoid')
     ])
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
     return model
 
-# --- Train with Adam optimizer ---
-adam_model = create_dnn(X_train.shape[1], y_train.shape[1])
-adam_optimizer = Adam(learning_rate=0.001)
-adam_model.compile(optimizer=adam_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+# Create and train with Adam
+model_adam = build_model(Adam(learning_rate=0.001))
+history_adam = model_adam.fit(train_data, epochs=5, validation_data=test_data)
 
-print("Training with Adam optimizer...")
-history_adam = adam_model.fit(X_train, y_train,
-                              validation_data=(X_val, y_val),
-                              epochs=30,
-                              batch_size=64,
-                              verbose=0)
+# Create and train with SGD
+model_sgd = build_model(SGD(learning_rate=0.001))
+history_sgd = model_sgd.fit(train_data, epochs=5, validation_data=test_data)
 
-# --- Train with SGD optimizer ---
-sgd_model = create_dnn(X_train.shape[1], y_train.shape[1])
-sgd_optimizer = SGD(learning_rate=0.001)
-sgd_model.compile(optimizer=sgd_optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+# Plot function
+def plot_metrics(h1, h2, name):
+    plt.plot(h1.history[name], label='Adam - Train', color='blue')
+    plt.plot(h1.history['val_' + name], label='Adam - Test', linestyle='--', color='blue')
+    plt.plot(h2.history[name], label='SGD - Train', color='green')
+    plt.plot(h2.history['val_' + name], label='SGD - Test', linestyle='--', color='green')
+    plt.title(name.capitalize() + ' Comparison')
+    plt.xlabel('Epochs')
+    plt.ylabel(name.capitalize())
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
-print("Training with SGD optimizer...")
-history_sgd = sgd_model.fit(X_train, y_train,
-                            validation_data=(X_val, y_val),
-                            epochs=30,
-                            batch_size=64,
-                            verbose=0)
-
-# --- Plot validation loss and accuracy ---
-plt.figure(figsize=(14,6))
-
-plt.subplot(1, 2, 1)
-plt.plot(history_adam.history['val_loss'], label='Adam Val Loss')
-plt.plot(history_sgd.history['val_loss'], label='SGD Val Loss')
-plt.title('Validation Loss Comparison')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
-
-plt.subplot(1, 2, 2)
-plt.plot(history_adam.history['val_accuracy'], label='Adam Val Accuracy')
-plt.plot(history_sgd.history['val_accuracy'], label='SGD Val Accuracy')
-plt.title('Validation Accuracy Comparison')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-
-plt.show()
+# Show accuracy and loss plots
+plot_metrics(history_adam, history_sgd, 'accuracy')
+plot_metrics(history_adam, history_sgd, 'loss')
