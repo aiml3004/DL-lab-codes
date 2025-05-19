@@ -1,87 +1,78 @@
----Implement a DNN using RMSprop with learning rates 0.01 and 0.0001 on the Wildfire dataset. 
-Compare training and validation performance. 
+#Implement a DNN using RMSprop with learning rates 0.01 and 0.0001 on the Wildfire dataset. Compare training and validation performance. 
 
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.optimizers import RMSprop
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from tensorflow.keras.utils import to_categorical
 import matplotlib.pyplot as plt
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.optimizers import RMSprop
 
-# --- Dummy data for Wildfire dataset placeholder ---
-num_samples = 8000
-num_features = 15
-num_classes = 4  # example number of classes
+# Load images (rescale and resize to 128x128)
+train_dir = 'wildfire_dataset/train'
+test_dir = 'wildfire_dataset/test'
 
-np.random.seed(1)
-X = np.random.rand(num_samples, num_features).astype('float32')
-y = np.random.randint(0, num_classes, num_samples)
+train_gen = ImageDataGenerator(rescale=1./255)
+test_gen = ImageDataGenerator(rescale=1./255)
 
-# Normalize features
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+train_data = train_gen.flow_from_directory(train_dir,
+                                           target_size=(128, 128),
+                                           batch_size=32,
+                                           class_mode='binary')
 
-# One-hot encode labels
-y_cat = to_categorical(y, num_classes)
+test_data = test_gen.flow_from_directory(test_dir,
+                                         target_size=(128, 128),
+                                         batch_size=32,
+                                         class_mode='binary',
+                                         shuffle=False)
 
-# Train-validation split
-X_train, X_val, y_train, y_val = train_test_split(X_scaled, y_cat, test_size=0.2, random_state=42)
-
-# --- Define DNN model function ---
-def create_dnn(input_dim, num_classes):
+# Create DNN model
+def make_model(learning_rate):
     model = Sequential([
-        Dense(128, activation='relu', input_shape=(input_dim,)),
-        Dropout(0.3),
+        Flatten(input_shape=(128, 128, 3)),
+        Dense(128, activation='relu'),
         Dense(64, activation='relu'),
-        Dropout(0.2),
-        Dense(num_classes, activation='softmax')
+        Dense(1, activation='sigmoid')
     ])
+    model.compile(optimizer=RMSprop(learning_rate=learning_rate),
+                  loss='binary_crossentropy',
+                  metrics=['accuracy'])
     return model
 
-# --- Train with RMSprop, lr=0.01 ---
-model_01 = create_dnn(X_train.shape[1], y_train.shape[1])
-optimizer_01 = RMSprop(learning_rate=0.01)
-model_01.compile(optimizer=optimizer_01, loss='categorical_crossentropy', metrics=['accuracy'])
+# Train model with RMSprop (lr = 0.01)
+model_high_lr = make_model(0.01)
+history_high_lr = model_high_lr.fit(train_data, epochs=10, validation_data=test_data)
 
-print("Training with RMSprop lr=0.01 ...")
-history_01 = model_01.fit(X_train, y_train,
-                          validation_data=(X_val, y_val),
-                          epochs=30,
-                          batch_size=64,
-                          verbose=0)
+# Train model with RMSprop (lr = 0.0001)
+model_low_lr = make_model(0.0001)
+history_low_lr = model_low_lr.fit(train_data, epochs=10, validation_data=test_data)
 
-# --- Train with RMSprop, lr=0.0001 ---
-model_00001 = create_dnn(X_train.shape[1], y_train.shape[1])
-optimizer_00001 = RMSprop(learning_rate=0.0001)
-model_00001.compile(optimizer=optimizer_00001, loss='categorical_crossentropy', metrics=['accuracy'])
+# Plot training and validation accuracy/loss
+def plot_compare(hist1, hist2, label1, label2):
+    plt.figure(figsize=(14, 5))
 
-print("Training with RMSprop lr=0.0001 ...")
-history_00001 = model_00001.fit(X_train, y_train,
-                                validation_data=(X_val, y_val),
-                                epochs=30,
-                                batch_size=64,
-                                verbose=0)
+    # Accuracy
+    plt.subplot(1, 2, 1)
+    plt.plot(hist1.history['accuracy'], label=f'{label1} - Train')
+    plt.plot(hist1.history['val_accuracy'], label=f'{label1} - Val')
+    plt.plot(hist2.history['accuracy'], label=f'{label2} - Train')
+    plt.plot(hist2.history['val_accuracy'], label=f'{label2} - Val')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
 
-# --- Plot training and validation accuracy and loss ---
-plt.figure(figsize=(14,6))
+    # Loss
+    plt.subplot(1, 2, 2)
+    plt.plot(hist1.history['loss'], label=f'{label1} - Train')
+    plt.plot(hist1.history['val_loss'], label=f'{label1} - Val')
+    plt.plot(hist2.history['loss'], label=f'{label2} - Train')
+    plt.plot(hist2.history['val_loss'], label=f'{label2} - Val')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
 
-plt.subplot(1,2,1)
-plt.plot(history_01.history['val_loss'], label='Val Loss lr=0.01')
-plt.plot(history_00001.history['val_loss'], label='Val Loss lr=0.0001')
-plt.title('Validation Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.legend()
+    plt.tight_layout()
+    plt.show()
 
-plt.subplot(1,2,2)
-plt.plot(history_01.history['val_accuracy'], label='Val Accuracy lr=0.01')
-plt.plot(history_00001.history['val_accuracy'], label='Val Accuracy lr=0.0001')
-plt.title('Validation Accuracy')
-plt.xlabel('Epoch')
-plt.ylabel('Accuracy')
-plt.legend()
-
-plt.show()
+# Compare results
+plot_compare(history_high_lr, history_low_lr, 'LR=0.01', 'LR=0.0001')
