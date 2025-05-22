@@ -10,9 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Paths
-train_path = "/content/wildfire_dataset/train"
-val_path = "/content/wildfire_dataset/validation"
-test_path = "/content/wildfire_dataset/test"
+train_path = "wildfire_dataset/training"
+val_test_path = "wildfire_dataset/test and val"
 
 # Parameters
 img_size = (150, 150)
@@ -21,8 +20,7 @@ epochs = 10
 
 # Data generators
 train_datagen = ImageDataGenerator(rescale=1./255)
-val_datagen = ImageDataGenerator(rescale=1./255)
-test_datagen = ImageDataGenerator(rescale=1./255)
+val_test_datagen = ImageDataGenerator(rescale=1./255, validation_split=0.5)
 
 train_generator = train_datagen.flow_from_directory(
     train_path,
@@ -31,18 +29,20 @@ train_generator = train_datagen.flow_from_directory(
     class_mode='binary'
 )
 
-val_generator = val_datagen.flow_from_directory(
-    val_path,
-    target_size=img_size,
-    batch_size=batch_size,
-    class_mode='binary'
-)
-
-test_generator = test_datagen.flow_from_directory(
-    test_path,
+val_generator = val_test_datagen.flow_from_directory(
+    val_test_path,
     target_size=img_size,
     batch_size=batch_size,
     class_mode='binary',
+    subset='training'
+)
+
+test_generator = val_test_datagen.flow_from_directory(
+    val_test_path,
+    target_size=img_size,
+    batch_size=batch_size,
+    class_mode='binary',
+    subset='validation',
     shuffle=False
 )
 
