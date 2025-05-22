@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 columns = ["letter", "x-box", "y-box", "width", "high", "onpix", "x-bar", "y-bar",
            "x2bar", "y2bar", "xybar", "x2ybr", "xy2br", "x-ege", "xegvy", "y-ege", "yegvx"]
 
-df = pd.read_csv("/content/letter-recognition.data", names=columns)
+df = pd.read_csv("E:/DL_LAB_EXAM/Datasets/UCI_letter_recognition/letter-recognition.data", names=columns)
 
 # 2. Separate features and labels
 X = df.iloc[:, 1:].values  # Features (skip 'letter')
