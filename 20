@@ -2,62 +2,73 @@
 Classify Apple leaf images using a CNN without data augmentation for 10 epochs. 
 
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers, models
+import os
+
+# Dataset path
+data_dir = r"E:/DL_LAB_EXAM/Datasets/Plant_data/Apple"
 
 # Parameters
-img_height, img_width = 150, 150
+img_size = (128, 128)
 batch_size = 32
-epochs = 10
-train_dir = 'dataset/train'          # Path to training data
-validation_dir = 'dataset/validation' # Path to validation data
 
-# Data generators WITHOUT augmentation
-train_datagen = ImageDataGenerator(rescale=1./255)
-validation_datagen = ImageDataGenerator(rescale=1./255)
-
-train_generator = train_datagen.flow_from_directory(
-    train_dir,
-    target_size=(img_height, img_width),
+# Load data without augmentation
+train_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    os.path.join(data_dir, "Train"),
+    image_size=img_size,
     batch_size=batch_size,
-    class_mode='categorical'  # Use 'binary' if only 2 classes
+    label_mode="categorical"
 )
 
-validation_generator = validation_datagen.flow_from_directory(
-    validation_dir,
-    target_size=(img_height, img_width),
+val_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    os.path.join(data_dir, "Val"),
+    image_size=img_size,
     batch_size=batch_size,
-    class_mode='categorical'
+    label_mode="categorical"
 )
 
-# Define a simple CNN model
-model = Sequential([
-    Conv2D(32, (3, 3), activation='relu', input_shape=(img_height, img_width, 3)),
-    MaxPooling2D(2, 2),
-    
-    Conv2D(64, (3, 3), activation='relu'),
-    MaxPooling2D(2, 2),
+test_ds = tf.keras.preprocessing.image_dataset_from_directory(
+    os.path.join(data_dir, "Test"),
+    image_size=img_size,
+    batch_size=batch_size,
+    label_mode="categorical"
+)
 
-    Conv2D(128, (3, 3), activation='relu'),
-    MaxPooling2D(2, 2),
+# Prefetch for performance
+AUTOTUNE = tf.data.AUTOTUNE
+train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
+val_ds = val_ds.prefetch(buffer_size=AUTOTUNE)
+test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
 
-    Flatten(),
-    Dense(512, activation='relu'),
-    Dropout(0.5),
-    Dense(train_generator.num_classes, activation='softmax')
+# Simple CNN model
+model = models.Sequential([
+    layers.Rescaling(1./255, input_shape=(128, 128, 3)),
+
+    layers.Conv2D(16, 3, activation='relu'),
+    layers.MaxPooling2D(),
+
+    layers.Conv2D(32, 3, activation='relu'),
+    layers.MaxPooling2D(),
+
+    layers.Conv2D(64, 3, activation='relu'),
+    layers.MaxPooling2D(),
+
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dropout(0.3),
+    layers.Dense(4, activation='softmax')  # 4 classes
 ])
 
+# Compile the model
 model.compile(optimizer='adam',
               loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 # Train the model
-history = model.fit(
-    train_generator,
-    epochs=epochs,
-    validation_data=validation_generator
-)
+history = model.fit(train_ds,
+                    validation_data=val_ds,
+                    epochs=10)
 
-# Save the model if you want
-model.save('apple_leaf_classifier.h5')
+# Evaluate on test data
+test_loss, test_acc = model.evaluate(test_ds)
+print(f"Test Accuracy: {test_acc*100:.2f}%")
