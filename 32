@@ -25,7 +25,7 @@ def create_model():
         Flatten(),
         Dense(128, activation='relu'),
         Dropout(0.5),
-        Dense(5, activation='softmax')  # Adjust to match the number of classes
+        Dense(6, activation='softmax')  # Adjust to match the number of classes
     ])
     model.compile(
         optimizer=Adam(learning_rate=0.0001),
